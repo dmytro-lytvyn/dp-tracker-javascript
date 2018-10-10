@@ -1,0 +1,29 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<title>Event Sender Test</title>
+
+	<script src="event_tracker.js"></script>
+	<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+
+	<script type="text/javascript">
+		$(document).ready(function() {
+			// Click events tracking
+			$("a").click(function(){
+				// See also: this.attributes.onclick.nodeValue, this.id, this.href, this.outerText
+				var objectId = this.outerHTML;
+				sendPageEvent("WEBSITE", "LINK", objectId, "CLICK", "v.1");
+			});
+			$("button").click(function(){
+				var objectId = this.outerHTML;
+				sendPageEvent("WEBSITE", "BUTTON", objectId, "CLICK", "v.1");
+			});
+		});
+	</script>
+</head>
+<body>
+	<button onclick="javascript:window.location.reload();" id="RefreshButton">Refresh</button>
+	<a href="#test_link" id="TestLink">Test link text</a>
+</body>
+</html>
