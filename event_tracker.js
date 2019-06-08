@@ -1,3 +1,6 @@
+// Use obfuscator.io to compress and obfuscate the code, add onLinkClick and onButtonClick to Reserved Names
+
+// Simple UUID generator, from https://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
 function uuidv4() {
 	return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
 		(c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
@@ -27,7 +30,8 @@ function getDeviceType(userAgent) {
 	return deviceType;
 }
 
-function sendEvent(eventContext, eventObject, eventObjectId, eventAction, schemaVersion, eventContent) {
+// Main event sending function, generates or obtains existing cookies
+function sendEvent(subjectId, subjectType, subjectAttributes, actionType, actionAttributes) {
 	const url = "https://input.data-for.me:1337/events";
 
 	var xhr = createCORSRequest("POST", url);
@@ -53,25 +57,37 @@ function sendEvent(eventContext, eventObject, eventObjectId, eventAction, schema
 
 	var timezoneOffsetHours = (new Date().getTimezoneOffset() / -60).toString();
 
-	var event = {
-		context: eventContext,
-		object: eventObject,
-		object_id: eventObjectId,
-		action: eventAction,
-		origin: "BROWSER",
-		origin_id: deviceId,
+	var actionAttributesMerged = {
 		session_id: sessionId,
-		event_id: eventId,
-		event_timestamp: currentTimestamp,
-		timezone_offset: timezoneOffsetHours,
-		schema_version: schemaVersion,
-		content_type: "application/json",
-		content: eventContent
+		action_timestamp: currentTimestamp,
+		timezone_offset: timezoneOffsetHours
 	};
 
-	if (typeof otherAttributes == "object") {
-		eventContent = Object.assign(otherAttributes, eventContent);
+	if (typeof actionAttributes == "object") {
+		actionAttributesMerged = Object.assign(actionAttributes, actionAttributesMerged);
 	}
+
+	var event = {
+		event_id: eventId,
+		event_timestamp: currentTimestamp,
+		origin: {
+			id: deviceId,
+			type: "website_browser"
+		},
+		actor: { // Can be replaced with a logged in user info if available
+			id: deviceId,
+			type: "website_visitor"
+		},
+		subject: {
+			id: subjectId,
+			type: subjectType,
+			attributes: subjectAttributes
+		},
+		action: {
+			type: actionType,
+			attributes: actionAttributesMerged
+		}
+	};
 
 	xhr.setRequestHeader(
 		"Content-Type", "application/vnd.kafka.json.v1+json"
@@ -80,8 +96,9 @@ function sendEvent(eventContext, eventObject, eventObjectId, eventAction, schema
 	xhr.send(JSON.stringify(event));
 }
 
-function sendPageEvent(eventContext, eventObject, eventObjectId, eventAction, schemaVersion, additionalContent) {
-	var eventContent = {
+// Generic page event wrapper, adds default page action attributes to the event
+function sendPageEvent(subjectId, subjectType, subjectAttributes, actionType, actionAttributes) {
+	var actionAttributesMerged = {
 		url: window.location.href,
 		url_protocol: window.location.protocol,
 		url_domain_name: window.location.hostname,
@@ -96,27 +113,37 @@ function sendPageEvent(eventContext, eventObject, eventObjectId, eventAction, sc
 		device_screen_height: (window.screen.height * window.devicePixelRatio).toString()
 	};
 
-	if (typeof additionalContent == "object") {
-		eventContent = Object.assign(additionalContent, eventContent);
+	if (typeof actionAttributes == "object") {
+		actionAttributesMerged = Object.assign(actionAttributes, actionAttributesMerged);
 	}
 
-	sendEvent(eventContext, eventObject, eventObjectId, eventAction, schemaVersion, eventContent);
+	sendEvent(subjectId, subjectType, subjectAttributes, actionType, actionAttributesMerged);
+}
+
+// Wrappers for specific types of page events
+function onLinkClick(linkId) {
+	sendPageEvent(linkId, "website_link", undefined, "click", undefined);
+}
+
+function onButtonClick(buttonId) {
+	sendPageEvent(buttonId, "website_button", undefined, "click", undefined);
 }
 
 function onPageLoad(e) {
-	sendPageEvent("WEBSITE", "PAGE", window.location.href, "VIEW", "v.1");
+	sendPageEvent(window.location.href, "website_page", undefined, "view", undefined);
 }
 
+// Assigning onPageLoad function, trying not to replace any existing functions
 if (window.attachEvent) {
 	window.attachEvent("onload", onPageLoad);
 } else {
 	if (window.onload) {
-		var curronload = window.onload;
-		var newonload = function(evt) {
-			curronload(evt);
+		var currentOnLoad = window.onload;
+		var newOnLoad = function(evt) {
+			currentOnLoad(evt);
 			onPageLoad(evt);
 		};
-		window.onload = newonload;
+		window.onload = newOnLoad;
 	} else {
 		window.onload = onPageLoad;
 	}

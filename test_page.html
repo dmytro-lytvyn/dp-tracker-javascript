@@ -13,11 +13,11 @@
 			$("a").click(function(){
 				// See also: this.attributes.onclick.nodeValue, this.id, this.href, this.outerText
 				var objectId = this.outerHTML;
-				sendPageEvent("WEBSITE", "LINK", objectId, "CLICK", "v.1");
+				onLinkClick(objectId);
 			});
 			$("button").click(function(){
 				var objectId = this.outerHTML;
-				sendPageEvent("WEBSITE", "BUTTON", objectId, "CLICK", "v.1");
+				onButtonClick(objectId);
 			});
 		});
 	</script>
